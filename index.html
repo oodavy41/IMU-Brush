@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<!-- saved from url=(0019)http://10.9.65.150/ -->
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Accelerometer Example</title>
+    <script type="text/javascript" src="math.min.js"></script>
+    <script type="text/javascript" src="kalman.js"></script>
+    <script type="text/javascript" src="sylvester.src.js"></script>
+    <script type="text/javascript" src="socket.io-1.4.5.js"></script>
+    <script type="text/javascript">
+
+        //socket
+        var isok = false;
+        var socket = io.connect(window.location.host);
+
+        socket.on("ok", function () {
+            document.getElementById("ADMIN").innerHTML = "OKADMIN";
+            isok = true;
+            document.getElementById("ADMIN").onclick = function () {
+                socket.emit("ad");
+                document.getElementById("accc").style.display = "none";
+                document.getElementById("arrAsWithOutFliter").style.display = "none";
+                document.getElementById("arrAs").style.display = "none";
+                document.getElementById("arrAN").style.display = "none";
+                document.getElementById("arrVs").style.display = "none";
+                document.getElementById("biubiu").style.display = "none";
+                document.getElementById("but").style.display = "none";
+
+
+                socket.on("data", function (aw, an, a, v, s, s2) {
+                    var no = document.getElementById("nothing");
+                    no.innerHTML = "";
+                    /*no.appendChild(document.createTextNode("aw:"+showArr(aw)));
+                     no.innerHTML += "<p>====================</p>";
+                     no.appendChild(document.createTextNode("an:" + showArr(an)));
+                     no.innerHTML += "<p>====================</p>";
+                     no.appendChild(document.createTextNode("a:" + showArr(a)));
+                     no.innerHTML += "<p>====================</p>";
+                     no.appendChild(document.createTextNode("v:" + showArr(v)));
+                     no.innerHTML += "<p>====================</p>";*/
+                    no.appendChild(document.createTextNode("s:" + showArr(s)));
+                    no.innerHTML += "<p>====================</p>";
+                    no.innerHTML += "<p>start</p>";
+                    //no.appendChild(document.createTextNode(showArrs(aw, a, an, s2, s)));
+                    no.innerHTML += "<p>end</p>";
+                    /*no.innerHTML+="<p>====================</p>";
+                     no.appendChild(document.createTextNode("s2:"+showArrs(s2)));*/
+                });
+
+                socket.on("actdata", function (data) {
+                    document.getElementById("arrSs").innerText += '{'
+                            + data[0] + ',' + data[1] + ',' + data[2] + ','
+                            + data[3] + ','
+                            + data[4] + ',' + data[5] + ',' + data[6] + ','
+                            + data[7] + ',' + data[8] + ',' + data[9] + ','
+                            + data[10] + ',' + data[11] + ',' + data[12] + '},';
+                });
+
+                socket.on("start", function () {
+                    document.getElementById("arrSs").innerText = "";
+                })
+
+            };
+        });
+
+        showArrs = function (aw, a, an, s2, s) {
+            var ret = "";
+            aw.forEach(function (element, index, array) {
+                var s2in = index <= 4 ? 0 : index - 4;
+                ret += aw[index][0] + "," + aw[index][1] + "," + aw[index][2] + "," +
+                        a[index][0] + "," + a[index][1] + "," + a[index][2] + "," +
+                        an[index][0] + "," + an[index][1] + "," + an[index][2] + "," +
+                        "0," + "0," + "0," +
+                        s2[s2in][0] + "," + s2[s2in][1] + "," + s2[s2in][2] + "," +
+                        s[index][0] + "," + s[index][1] + "," + s[index][2] + "\n";
+            });
+            return ret;
+        };
+
+        showArr = function (arr) {
+            var ret = "";
+            arr.forEach(function (element, index, array) {
+                //ret += element[0] + " " + element[1] + " " + element[2] + "|";
+                ret += '{' + element[0] + ',' + element[1] + ',' + element[2] + '},';
+            });
+            return ret;
+        };
+
+
+        //socketend
+
+        //初始化部分
+        var aper;
+        var alpha = 0, beta = 0, gamma = 0;
+        var arrAW = [], arraAN = [], arrA = [], arrV = [], arrS = [];
+
+        var arrA2 = [], arrS2 = [];
+        var lv, ls, la;
+        var s = [0, 0, 0], v = [0, 0, 0], timetick = 0;
+
+        var lstage, scount;
+
+        //kalman部分
+        var x_0 = $V([0, 0, 0]);
+        var P_0 = $M([
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1]
+        ]);
+        var F_k = $M([
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1]
+        ]);
+        var Q_k = $M([
+            [0.000005, 0, 0],
+            [0, 0.000005, 0],
+            [0, 0, 0.000005]
+        ]);
+
+        var KM = new KalmanModel(x_0, P_0, F_k, Q_k);
+
+        var z_k = $V([0, 0, 0]);
+        var H_k = $M([
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1]
+        ]);
+        var R_k = $M([
+            [0.01, 0, 0],
+            [0, 0.01, 0],
+            [0, 0, 0.01]
+        ]);
+
+        var KO = new KalmanObservation(z_k, H_k, R_k);
+
+        //初始化结束
+
+        window.addEventListener("deviceorientation", findNorth, false);
+        window.addEventListener("devicemotion", gggg);
+
+        function findNorth(evt) {
+            var acc = document.getElementById("accc");
+            acc.innerHTML = '<p>' + evt.alpha + '</p>' +
+                    '<p>' + evt.beta + '</p>' +
+                    '<p>' + evt.gamma + '</p>';
+            alpha = -1 * evt.alpha * 2 * 3.14 / 360;
+            beta = -1 * evt.beta * 2 * 3.14 / 360;
+            gamma = -1 * evt.gamma * 2 * 3.14 / 360;
+        }
+
+
+        var lasttime;
+        var thistime;
+        var acac = false, includeG = false;
+
+        function touchstart(evt) {
+            acac = true;
+            lasttime = (new Date()).getTime();
+
+            s = [0, 0, 0];
+            v = [0, 0, 0];
+            la = lv = ls = [0, 0, 0];
+            lstage = null;
+            scount = 0;
+
+            /*            var m0 = [aper.x, aper.y, aper.z, 1];
+             m0 = rolling(m0);
+
+             x_0 = $V([m0[0], m0[1], m0[2]]);*/
+
+            KM = new KalmanModel(x_0, P_0, F_k, Q_k);
+            KO = new KalmanObservation(z_k, H_k, R_k);
+
+            socket.emit("start");
+        }
+
+        function touchend() {
+            acac = false;
+            arrA = kalmanfliter(arrAW);
+            arrA2 = midfliter(arrAW);
+
+            var vxx, vyy, vzz, xx, yy, zz;
+            xx = yy = zz = vyy = vzz = vxx = 0;
+
+            arrA2.forEach(function (element, index, array) {
+                var tdt = element[3];
+                vxx += element[0] * tdt;
+                vyy += element[1] * tdt;
+                vzz += element[2] * tdt;
+
+                xx += vxx * tdt;
+                yy += vyy * tdt;
+                zz += vzz * tdt;
+                arrS2.push([xx, yy, zz]);
+
+            });
+
+
+            xx = yy = zz = vyy = vzz = vxx = 0;
+            arrA.forEach(function (element, index, array) {
+                var tdt = element[3];
+                vxx += element[0] * tdt;
+                vyy += element[1] * tdt;
+                vzz += element[2] * tdt;
+                arrV.push([vxx, vyy, vzz]);
+
+                xx += vxx * tdt;
+                yy += vyy * tdt;
+                zz += vzz * tdt;
+                arrS.push([xx, yy, zz]);
+
+                var arrAs = document.getElementById('arrAs');
+                var arrVs = document.getElementById('arrVs');
+                var arrSs = document.getElementById('arrSs');
+                var a = document.createTextNode(element[0] + "," + element[1] + "," + element[2] + "|");
+                var v = document.createTextNode(vxx + "," + vyy + "," + vzz + "|");
+                var s = document.createTextNode(xx + "," + yy + "," + zz + "|");
+                arrAs.appendChild(a);
+                arrVs.appendChild(v);
+                arrSs.appendChild(s);
+            });
+
+
+            if (isok) {
+                socket.emit("data", [arrAW, arraAN, arrA, arrV, arrS, arrS2]);
+            }
+
+
+            arrA = [];
+            arrV = [];
+            arrS = [];
+        }
+
+
+        function midfliter(array) {
+            var size = array.length;
+            var start = 2;
+            var end = size - 2;
+            var ret = [];
+            for (var i = start; i < end; i++) {
+                var theay = [];
+                var t = 5;
+                while (t-- > 0) {
+                    var p = i + 2 - t;
+                    theay.push([array[p][0], array[p][1], array[p][2]]);
+                }
+                theay.sort(sortA);
+                ret.push([theay[2][0], theay[2][1], theay[2][2], array[i][3]]);
+            }
+            return ret;
+        }
+
+        function averfliter(array) {
+            var size = array.length;
+            var start = 2;
+            var end = size - 2;
+            var ret = [];
+            for (var i = start; i < end; i++) {
+                var theay = [0, 0, 0];
+                var t = 5;
+                while (t-- > 0) {
+                    var p = i + 2 - t;
+                    theay[0] += array[p][0];
+                    theay[1] += array[p][1];
+                    theay[2] += array[p][2];
+                }
+                ret.push([theay[0] / t, theay[1] / t, theay[2] / t, array[i][3]]);
+            }
+            return ret;
+        }
+
+        function kalmanfliter(array) {
+            var x_0 = $V([0, 0, 0]);
+            var P_0 = $M([
+                [1, 0, 0],
+                [0, 1, 0],
+                [0, 0, 1]
+            ]);
+            var F_k = $M([
+                [1, 0, 0],
+                [0, 1, 0],
+                [0, 0, 1]
+            ]);
+            var Q_k = $M([
+                [0.0005, 0, 0],
+                [0, 0.0005, 0],
+                [0, 0, 0.0005]
+            ]);
+
+            var KM = new KalmanModel(x_0, P_0, F_k, Q_k);
+
+            var z_k = $V([0, 0, 0]);
+            var H_k = $M([
+                [1, 0, 0],
+                [0, 1, 0],
+                [0, 0, 1]
+            ]);
+            var R_k = $M([
+                [0.01, 0, 0],
+                [0, 0.01, 0],
+                [0, 0, 0.01]
+            ]);
+
+            var KO = new KalmanObservation(z_k, H_k, R_k);
+
+            var ret = [];
+            array.forEach(function (element) {
+                KO.z_k = $V([element[0], element[1], element[2]]);
+                KM.update(KO);
+                var arr = KM.x_k.elements;
+                ret.push([arr[0], arr[1], arr[2], element[3]]);
+            });
+
+            return ret;
+        }
+
+        function sortA(a, b) {
+            return a[0] * a[0] + a[1] * a[1] + a[2] * a[2] - b[0] * b[0] - b[1] * b[1] - b[2] * b[2];
+        }
+
+        function rolling(m0) {
+            var may = [
+                [Math.cos(gamma), 0, Math.sin(gamma), 0],
+                [0, 1, 0, 0],
+                [Math.sin(gamma) * -1, 0, Math.cos(gamma), 0],
+                [0, 0, 0, 1]
+            ];
+            var mbx = [
+                [1, 0, 0, 0],
+                [0, Math.cos(beta), -1 * Math.sin(beta), 0],
+                [0, Math.sin(beta), Math.cos(beta), 0],
+                [0, 0, 0, 1]
+            ];
+            var mcz = [
+                [Math.cos(alpha), -1 * Math.sin(alpha), 0, 0],
+                [Math.sin(alpha), Math.cos(alpha), 0, 0],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1]
+            ];
+            arraAN.push([gamma, beta, alpha]);
+            var arrAN = document.getElementById("arrAN");
+            arrAN.appendChild(document.createTextNode(gamma + "," + beta + "," + alpha + "|"));
+
+
+            m0 = math.multiply(m0, may);
+            m0 = math.multiply(m0, mbx);
+            m0 = math.multiply(m0, mcz);
+
+            return m0;
+
+        }
+
+        var deltaTime;
+        var i = 0;
+
+        function gggg(evt) {
+            thistime = (new Date()).getTime();
+            deltaTime = (thistime - lasttime) / 1000;
+            aper = includeG ? evt.accelerationIncludingGravity : evt.acceleration;
+
+            var acc = document.getElementById("aggg");
+            acc.innerHTML = '<p>' + aper.x + '</p>' +
+                    '<p>' + aper.y + '</p>' +
+                    '<p>' + aper.z + '</p>';
+
+            if (acac) {
+                lasttime = thistime;
+                var ax, ay, az;
+                var ac = document.getElementById("arrAsWithOutFliter");
+
+                var m0 = [aper.x, aper.y, aper.z, 1];
+                m0 = rolling(m0);
+                ax = m0[0];
+                ay = m0[1];
+                az = m0[2];
+                arrAW.push([m0[0], m0[1], m0[2], deltaTime]);
+                ac.appendChild(document.createTextNode(ax + "," + ay + "," + az + "|"));
+
+
+                acc.innerHTML = '<p>' + ax + '</p>' +
+                        '<p>' + ay + '</p>' +
+                        '<p>' + az + '</p>';
+
+                //KO.z_k = $V([ax, ay, az]);
+                //KM.update(KO);
+                var a;
+                //a = KM.x_k.elements;
+                a = [ax, ay, az];
+
+                var tdt = deltaTime;
+                v[0] += (a[0] + la[0]) / 2 * tdt;
+                v[1] += (a[1] + la[1]) / 2 * tdt;
+                v[2] += (a[2] + la[2]) / 2 * tdt;
+
+                var ccc = 0;
+                a.forEach(function (ele) {
+                    if (Math.abs(ele) < 0.8)
+                        ccc++;
+                });
+                if (ccc == 3) {
+                    i++;
+                    if (i % 10 == 0)
+                        v[0] = v[1] = v[2] = 0;
+                }
+                var tstage = $V(v);
+                if (tstage.modulus() > 0.5) {
+                    socket.emit("log", "speed：" + tstage.modulus());
+                    if (!lstage)
+                        lstage = tstage;
+                    else {
+                        var cos = tstage.dot(lstage) / tstage.modulus() * lstage.modulus();
+                        socket.emit("log", cos);
+                        cos = Math.abs(cos);
+                        if (cos < 0.15) {
+                            v[0] *= 0;
+                            v[1] *= 0;
+                            v[2] *= 0;
+                            scount = 0;
+                            socket.emit("log", "shut");
+                        } else if (cos < 0.85) {
+                            lstage = null;
+                            scount = 0;
+                        }
+                        else {
+                            scount++;
+                            lstage.add(tstage.subtract(lstage) / (scount + 1));
+                        }
+                    }
+                }
+
+
+                s[0] += (v[0] + lv[0]) / 2 * tdt;
+                s[1] += (v[1] + lv[1]) / 2 * tdt;
+                s[2] += (v[2] + lv[2]) / 2 * tdt;
+
+
+                /*var c = [0, 0, 0];
+                 var lf = [true, true, true];
+                 a.forEach(function (ele, i) {
+                 var f = (ele < 0.3 && ele > -0.3);
+                 if (lf[i] != f)
+                 c[i]++;
+
+                 lf[i] = f;
+                 if (c[i] == 4)
+                 c[i] = v[i] = 0;
+
+                 });*/
+
+
+                timetick += tdt;
+                //此处发送数据:sx\sy\sz
+                if (isok) {
+                    socket.emit("actdata", [s[0], s[1], s[2], timetick, a[0], a[1], a[2], ax, ay, az, v[0], v[1], v[2]]);
+                }
+
+            }
+        }
+
+        window.onload = function () {
+            document.getElementById("biubiu").addEventListener("touchstart", touchstart, false);
+            document.getElementById("biubiu").addEventListener("touchend", touchend, false);
+            document.getElementById("but").onclick = function () {
+                if (acac)
+                    touchend();
+                else
+                    touchstart();
+                document.getElementById("but").innerHTML = acac.toString();
+            };
+            document.getElementById("useG").onclick = function () {
+                includeG = !includeG;
+                if (includeG) {
+                    document.getElementById("useG").innerHTML = "with G";
+                } else {
+                    document.getElementById("useG").innerHTML = "without G";
+                }
+            };
+            window.addEventListener("devicemotion", gggg);
+        }
+
+
+    </script>
+</head>
+<body>
+<button id="ADMIN">OKADMIN</button>
+<button id="useG">without G</button>
+<div id="accc"><p>null</p>
+    <p>null</p>
+    <p>null</p></div>
+<h1>----</h1>
+<div id="aggg"><p>null</p>
+    <p>null</p>
+    <p>null</p></div>
+<h1>----</h1>
+<div id="arrAsWithOutFliter">aw:</div>
+<h1>----</h1>
+<div id="arrAN">angs:</div>
+<h1>----</h1>
+<div id="arrAs">a:</div>
+<h1>----</h1>
+<div id="arrVs">v:</div>
+<h1>----</h1>
+<div id="arrSs">s:</div>
+<div id="nothing"></div>
+<div id="biubiu" style="
+background-color: blueviolet;
+position:fixed;
+top:20px;
+right:20px;
+width: 100px;
+height:100px;
+"></div>
+<button id="but" style="
+    position:fixed;
+top:150px;
+right:20px;
+width: 100px;
+height:100px;
+    ">abccc
+</button>
+
+</body>
+<iframe id="tmp_downloadhelper_iframe" style="display: none;"></iframe>
+</html>
