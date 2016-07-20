@@ -50,7 +50,6 @@ io.on('connection', function(socket) {
         if(unity&&(thistime-lasttime)>60) {
             lasttime=thistime;
             unity.write(data[0]+'|'+data[1]+'|'+data[2]);
-            console.log("possend");
         }
     });
     

@@ -396,16 +396,24 @@
                 v[1] += (a[1] + la[1]) / 2 * tdt;
                 v[2] += (a[2] + la[2]) / 2 * tdt;
 
+
                 var ccc = 0;
+
                 a.forEach(function (ele) {
                     if (Math.abs(ele) < 0.8)
                         ccc++;
                 });
+
                 if (ccc == 3) {
                     i++;
-                    if (i % 10 == 0)
+                    if (i >= 25) {
                         v[0] = v[1] = v[2] = 0;
-                }
+                        socket.emit("log","zero!)))000!");
+                        i=0;
+                    }
+                } else
+                    i = 0;
+
                 var tstage = $V(v);
                 if (tstage.modulus() > 0.5) {
                     socket.emit("log", "speed：" + tstage.modulus());
@@ -414,14 +422,13 @@
                     else {
                         var cos = tstage.dot(lstage) / tstage.modulus() * lstage.modulus();
                         socket.emit("log", cos);
-                        cos = Math.abs(cos);
-                        if (cos < 0.15) {
-                            v[0] *= 0;
-                            v[1] *= 0;
-                            v[2] *= 0;
+                        if (cos < -0.5) {
+                            v[0] *= -1;
+                            v[1] *= -1;
+                            v[2] *= -1;
                             scount = 0;
-                            socket.emit("log", "shut");
-                        } else if (cos < 0.85) {
+                            socket.emit("log", "shut"+cos);
+                        } else if (cos < 0.5) {
                             lstage = null;
                             scount = 0;
                         }
