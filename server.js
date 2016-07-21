@@ -3,8 +3,12 @@ var app = express();
 var server = require('http').createServer(app),
     io = require('socket.io')({transports: ['websocket'],}).listen(server);
 var path = require("path");
+var lpfx=require("lpf"),
+    lpfy=require("lpf"),
+    lpfz=require("lpf");
 
 var net=require('net');
+
 
 var port = process.env.PORT || 3000;
 server.listen(port);
@@ -18,6 +22,8 @@ app.get('/', function(req, res) {
 
 var socketadmin;
 var unity;
+var x,y,z;
+
 var lasttime=0;
 
 io.on('connection', function(socket) {
@@ -44,6 +50,9 @@ io.on('connection', function(socket) {
     });
     
     socket.on("actdata",function (data) {
+        data[4]=lpfx.next(data[7]);
+        data[5]=lpfy.next(data[8]);
+        data[6]=lpfz.next(data[9]);
         if(socketadmin)
             socketadmin.emit("actdata",data);
         var thistime=(new Date()).getTime();
@@ -56,6 +65,13 @@ io.on('connection', function(socket) {
     socket.on("start",function () {
         if(socketadmin)
             socketadmin.emit("start");
+        x=[0];
+        y=[0];
+        z=[0];
+        lpfx.smoothing=lpfy.smoothing=lpfz.smoothing=0.5;
+        lpfx.init(x);
+        lpfy.init(y);
+        lpfz.init(z);
         console.log("startttt");
     })
 });

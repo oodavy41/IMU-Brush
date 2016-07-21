@@ -21,34 +21,6 @@
             isok = true;
             document.getElementById("ADMIN").onclick = function () {
                 socket.emit("ad");
-                document.getElementById("accc").style.display = "none";
-                document.getElementById("arrAsWithOutFliter").style.display = "none";
-                document.getElementById("arrAs").style.display = "none";
-                document.getElementById("arrAN").style.display = "none";
-                document.getElementById("arrVs").style.display = "none";
-                document.getElementById("biubiu").style.display = "none";
-                document.getElementById("but").style.display = "none";
-
-
-                socket.on("data", function (aw, an, a, v, s, s2) {
-                    var no = document.getElementById("nothing");
-                    no.innerHTML = "";
-                    /*no.appendChild(document.createTextNode("aw:"+showArr(aw)));
-                     no.innerHTML += "<p>====================</p>";
-                     no.appendChild(document.createTextNode("an:" + showArr(an)));
-                     no.innerHTML += "<p>====================</p>";
-                     no.appendChild(document.createTextNode("a:" + showArr(a)));
-                     no.innerHTML += "<p>====================</p>";
-                     no.appendChild(document.createTextNode("v:" + showArr(v)));
-                     no.innerHTML += "<p>====================</p>";*/
-                    no.appendChild(document.createTextNode("s:" + showArr(s)));
-                    no.innerHTML += "<p>====================</p>";
-                    no.innerHTML += "<p>start</p>";
-                    //no.appendChild(document.createTextNode(showArrs(aw, a, an, s2, s)));
-                    no.innerHTML += "<p>end</p>";
-                    /*no.innerHTML+="<p>====================</p>";
-                     no.appendChild(document.createTextNode("s2:"+showArrs(s2)));*/
-                });
 
                 socket.on("actdata", function (data) {
                     document.getElementById("arrSs").innerText += '{'
@@ -385,16 +357,14 @@
                         '<p>' + ay + '</p>' +
                         '<p>' + az + '</p>';
 
-                //KO.z_k = $V([ax, ay, az]);
-                //KM.update(KO);
                 var a;
-                //a = KM.x_k.elements;
                 a = [ax, ay, az];
 
                 var tdt = deltaTime;
                 v[0] += (a[0] + la[0]) / 2 * tdt;
                 v[1] += (a[1] + la[1]) / 2 * tdt;
                 v[2] += (a[2] + la[2]) / 2 * tdt;
+                la=a;
 
 
                 var ccc = 0;
@@ -443,6 +413,7 @@
                 s[0] += (v[0] + lv[0]) / 2 * tdt;
                 s[1] += (v[1] + lv[1]) / 2 * tdt;
                 s[2] += (v[2] + lv[2]) / 2 * tdt;
+                lv=v;
 
 
                 /*var c = [0, 0, 0];
