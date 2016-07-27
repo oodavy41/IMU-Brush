@@ -376,15 +376,16 @@
 
                 if (ccc == 3) {
                     i++;
-                    if (i >= 25) {
+                    if (i >= 5) {
                         v[0] = v[1] = v[2] = 0;
+                        lv=v;
                         socket.emit("log","zero!)))000!");
                         i=0;
                     }
                 } else
                     i = 0;
 
-                var tstage = $V(v);
+                /*var tstage = $V(v);
                 if (tstage.modulus() > 0.5) {
                     socket.emit("log", "speed：" + tstage.modulus());
                     if (!lstage)
@@ -407,7 +408,7 @@
                             lstage.add(tstage.subtract(lstage) / (scount + 1));
                         }
                     }
-                }
+                }*/
 
 
                 s[0] += (v[0] + lv[0]) / 2 * tdt;
@@ -433,7 +434,7 @@
                 timetick += tdt;
                 //此处发送数据:sx\sy\sz
                 if (isok) {
-                    socket.emit("actdata", [s[0], s[1], s[2], timetick, a[0], a[1], a[2], ax, ay, az, v[0], v[1], v[2]]);
+                    socket.emit("actdata", [s[0], s[1], s[2], timetick, a[0], a[1], a[2], ax, ay, az, v[0], v[1], v[2],tdt]);
                 }
 
             }
